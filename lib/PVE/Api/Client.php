@@ -39,6 +39,17 @@ class Client {
         $this->pve_cluster_node_list = null;
     }
     
+    //==========================================================================
+    // TOOLS
+    //==========================================================================
+    
+    protected function sortByIndex($array){
+        $keys=array_keys($array);
+        $values=array_values($array);
+        array_multisort($keys,$values);
+        return array_combine($keys,$values);
+    }
+    
     protected function httpRequest($method,$path,$content=null){
         # Prepare cURL resource.
         $ch = curl_init();
@@ -179,34 +190,6 @@ class Client {
         throw new \Exception('Cannot retrieve node list');
     }
 
-    
-    /*
-     * bool|int get_next_vmid ()
-     * Get Last VMID from a Cluster or a Node
-     * returns a VMID, or false if not found.
-     */
-    public function get_next_vmid () {
-        $vmid = $this->pve_action("/cluster/nextid","GET");
-        if ($vmid == null) {
-            return false;
-        } else {
-            return $vmid;
-        }
-    }
-
-    /*
-     * bool|string get_version ()
-     * Return the version and minor revision of Proxmox Server
-     */
-    public function get_version () {
-        $version = $this->pve_action("/version","GET");
-        if ($version == null) {
-            return false;
-        } else {
-            return $version['version'];
-        }
-    }
-
     //==========================================================================
     // BASIC COMMANDS
     //==========================================================================
@@ -245,4 +228,79 @@ class Client {
     public function delete($action_path){
         return $this->pve_action($action_path, "DELETE");
     }
+    
+    //==========================================================================
+    // Api scope
+    //==========================================================================
+    
+    /**
+    * Get Last VMID from a Cluster or a Node
+    */
+    public function get_next_vmid() {
+        return $this->pve_action("/cluster/nextid");
+    }
+
+    /**
+    * Get cluster version
+    */
+    public function get_version() {
+        $version = $this->pve_action("/version");
+        return $version['version'];
+    }
+    
+    //==========================================================================
+    // OpenVZ Scope
+    //==========================================================================
+    
+    /**
+    * Get OpenVZ list across the entire cluster
+    * @return array
+    */
+    public function vzlist(){
+        $nodes=$this->get_node_list();
+        
+        $vzList=array();
+        foreach($nodes as $node){
+            $localVzList=$this->pve_action("/nodes/$node/openvz");
+            foreach($localVzList as $vz) $vzList[$vz['vmid']]=$vz;
+        }
+        
+        return $this->sortByIndex($vzList);
+    }
+    
+    //==========================================================================
+    // KVM Scope
+    //==========================================================================
+    
+    /**
+    * Get KVM list across the entire cluster
+    * @return array
+    */
+    public function kvmlist(){
+        $nodes=$this->get_node_list();
+        
+        $kvmList=array();
+        foreach($nodes as $node){
+            $localKvmList=$this->pve_action("/nodes/$node/qemu");
+            foreach($localKvmList as $kvm){
+                $kvm['type']='kvm';
+                $kvmList[$kvm['vmid']]=$kvm;  
+            } 
+        }
+        
+        return $this->sortByIndex($kvmList);
+    }
+    
+    //==========================================================================
+    // Unified OpenVZ + KVM Scope
+    //==========================================================================
+    
+    /**
+    * Get vm list across the entire cluster
+    * @return array
+    */
+    public function vmlist(){
+        return $this->sortByIndex($this->vzlist() + $this->kvmlist());
+    }
+    
 }
