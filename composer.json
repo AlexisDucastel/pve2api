@@ -1,4 +1,6 @@
 {
+    "name": "alexisducastel/pve2api",
+    "description": "This is a simple PHP client for Proxmox API",
     "autoload": {
         "psr-0": { 
             "PVE\\Api": "lib/"

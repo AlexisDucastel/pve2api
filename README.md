@@ -1,6 +1,4 @@
-This class provides the building blocks for someone wanting to use PHP to talk to Proxmox 2.0.
-Relatively simple piece of code, just provides a get/put/post/delete abstraction layer as methods
-on top of Proxmox's REST API, while also handling the Login Ticket headers required for authentication.
+This class implements a simple PHP client for Proxmox API (version 2 or later).
 
 See http://pve.proxmox.com/wiki/Proxmox_VE_API for information about how this API works.
 API spec available at http://pve.proxmox.com/pve2-api-doc/
@@ -13,129 +11,79 @@ PHP 5 with cURL (including SSL) support.
 
 Example - Return status array for each Proxmox Host in this cluster.
 
-    require("./pve2-api-php-client/pve2_api.class.php");
+    # use composer autoloader
+    require_once __DIR__."/vendor/autoload.php";
 
-    $pve2 = new PVE2_API("hostname", "username", "realm", "password");
-    # realm above can be pve, pam or any other realm available.
+    $api=new PVE\Api\Client('hostname');
+    
+    # realm can be pve, pam or any other realm available.
+    $api->login('login','realm','password');
 
-    if ($pve2->constructor_success()) {
-        /* Optional - enable debugging. It print()'s any results currently */
-        // $pve2->set_debug(true);
-
-        if ($pve2->login()) {
-            foreach ($pve2->get_node_list() as $node_name) {
-                print_r($pve2->get("/nodes/".$node_name."/status"));
-            }
-        } else {
-            print("Login to Proxmox Host failed.\n");
-            exit;
-        }
-    } else {
-        print("Could not create PVE2_API object.\n");
-        exit;
+    foreach ($api->get_node_list() as $node_name) {
+        print_r($api->get("/nodes/".$node_name."/status"));
     }
-
+    
 Example - Create a new OpenVZ Container on the first host in the cluster.
 
-    require("./pve2-api-php-client/pve2_api.class.php");
+    # use composer autoloader
+    require_once __DIR__."/vendor/autoload.php";
 
-    $pve2 = new PVE2_API("hostname", "username", "realm", "password");
-    # realm above can be pve, pam or any other realm available.
+    $api=new PVE\Api\Client('hostname');
+    
+    # realm can be pve, pam or any other realm available.
+    $api->login('login','realm','password');
 
-    if ($pve2->constructor_success()) {
+    # Get first node name.
+    $nodes = $api->get_node_list();
 
-        /* Optional - enable debugging. It print()'s any results currently */
-        // $pve2->set_debug(true);
+    # Create a VZ container on the first node in the cluster.
+    $new_container_settings = array();
+    $new_container_settings['ostemplate'] = "local:vztmpl/debian-6.0-standard_6.0-4_amd64.tar.gz";
+    $new_container_settings['vmid'] = "1234";
+    $new_container_settings['cpus'] = "2";
+    $new_container_settings['description'] = "Test VM using Proxmox 2.0 API";
+    $new_container_settings['disk'] = "8";
+    $new_container_settings['hostname'] = "testapi.domain.tld";
+    $new_container_settings['memory'] = "1024";
+    $new_container_settings['nameserver'] = "8.8.8.8";
 
-        if ($pve2->login()) {
-
-            # Get first node name.
-            $nodes = $pve2->get_node_list();
-            $first_node = $nodes[0];
-            unset($nodes);
-
-            # Create a VZ container on the first node in the cluster.
-            $new_container_settings = array();
-            $new_container_settings['ostemplate'] = "local:vztmpl/debian-6.0-standard_6.0-4_amd64.tar.gz";
-            $new_container_settings['vmid'] = "1234";
-            $new_container_settings['cpus'] = "2";
-            $new_container_settings['description'] = "Test VM using Proxmox 2.0 API";
-            $new_container_settings['disk'] = "8";
-            $new_container_settings['hostname'] = "testapi.domain.tld";
-            $new_container_settings['memory'] = "1024";
-            $new_container_settings['nameserver'] = "4.2.2.1";
-
-            // print_r($new_container_settings);
-            print("---------------------------\n");
-
-            print_r($pve2->post("/nodes/".$first_node."/openvz", $new_container_settings));
-            print("\n\n");
-        } else {
-            print("Login to Proxmox Host failed.\n");
-            exit;
-        }
-    } else {
-        print("Could not create PVE2_API object.\n");
-        exit;
-    }
+    print_r($api->post("/nodes/".$nodes[0]."/openvz", $new_container_settings));
 
 Example - Modify DNS settings on an existing container on the first host.
 
-    require("./pve2-api-php-client/pve2_api.class.php");
+    # use composer autoloader
+    require_once __DIR__."/vendor/autoload.php";
 
-    $pve2 = new PVE2_API("hostname", "username", "realm", "password");
-    # realm above can be pve, pam or any other realm available.
+    $api=new PVE\Api\Client('hostname');
+    
+    # realm can be pve, pam or any other realm available.
+    $api->login('login','realm','password');
 
-    if ($pve2->constructor_success()) {
+    # Get first node name.
+    $nodes = $api->get_node_list();
+    $openvzId = "100";
+            
+    # Update container settings.
+    $container_settings = array();
+    $container_settings['nameserver'] = "4.2.2.2";
 
-        /* Optional - enable debugging. It print()'s any results currently */
-        // $pve2->set_debug(true);
-
-        if ($pve2->login()) {
-
-            # Get first node name.
-            $nodes = $pve2->get_node_list();
-            $first_node = $nodes[0];
-            unset($nodes);
-
-            # Update container settings.
-            $container_settings = array();
-            $container_settings['nameserver'] = "4.2.2.2";
-
-            # NOTE - replace XXXX with container ID.
-            var_dump($pve2->put("/nodes/".$first_node."/openvz/XXXX/config", $container_settings));
-        } else {
-            print("Login to Proxmox Host failed.\n");
-            exit;
-        }
-    } else {
-        print("Could not create PVE2_API object.\n");
-        exit;
-    }
+    var_dump($api->put("/nodes/".$first_node."/openvz/".$openvzId."/config", $container_settings));
 
 Example - Delete an existing container.
 
-    require("./pve2-api-php-client/pve2_api.class.php");
+    # use composer autoloader
+    require_once __DIR__."/vendor/autoload.php";
 
-    $pve2 = new PVE2_API("hostname", "username", "realm", "password");
-    # realm above can be pve, pam or any other realm available.
+    $api=new PVE\Api\Client('hostname');
+    
+    # realm can be pve, pam or any other realm available.
+    $api->login('login','realm','password');
 
-    if ($pve2->constructor_success()) {
-
-        /* Optional - enable debugging. It print()'s any results currently */
-        // $pve2->set_debug(true);
-
-        if ($pve2->login()) {
-            # NOTE - replace XXXX with node short name, and YYYY with container ID.
-            var_dump($pve2->delete("/nodes/XXXX/openvz/YYYY"));
-        } else {
-            print("Login to Proxmox Host failed.\n");
-            exit;
-        }
-    } else {
-        print("Could not create PVE2_API object.\n");
-        exit;
-    }
-
+    # Get first node name.
+    $nodes = $api->get_node_list();
+    $openvzId = "100";
+            
+    var_dump($api->delete("/nodes/".$nodes[0]."/openvz/".$openvzId));
+    
 Licensed under the MIT License.
 See LICENSE file.
