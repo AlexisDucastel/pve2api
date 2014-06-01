@@ -98,11 +98,12 @@ class Client {
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
 
         $response = curl_exec($ch);
-
+                
+        if($response===false) throw new \Exception(curl_error($ch));
+        
         curl_close($ch);
         unset($ch);
-        
-        if($response===false) throw new \Exception(curl_error($ch));
+
         
         return $response;
     }
@@ -135,11 +136,12 @@ class Client {
         $login_ticket = curl_exec($prox_ch);
         
         curl_close($prox_ch);
+       
+        if($login_ticket===false) throw new \Exception('Cannot reach endpoint '.$this->endpoint.' on port '.$this->port);
+
         unset($prox_ch);
         unset($login_postfields_string);
         
-        if($login_ticket===false) throw new \Exception('Cannot reach endpoint '.$this->endpoint.' on port '.$this->port);
-
         $login_ticket_data = json_decode($login_ticket, true);
         if($login_ticket_data===null) throw new \Exception('Cannot decode ticket information');
         
@@ -266,6 +268,15 @@ class Client {
         }
         
         return $this->sortByIndex($vzList);
+    }
+    
+    /**
+    * 
+    * @param int $id
+    * @param mixed $params
+    */
+    public function vzcreate($id,$params){
+        
     }
     
     //==========================================================================
